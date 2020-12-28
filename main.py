@@ -14,6 +14,11 @@ white = (255,255,255)
 black = (0,0,0)
 transparent = (-1,-1,-1)
 
+rotate0 = 0
+rotate90 = 1
+rotate180 = 2
+rotate270 = 3
+
 
 def image_clear(color):
     c = color
@@ -31,7 +36,10 @@ def image_clear(color):
 
 class Image:
     def __init__(self, color):
-        self.data = image_clear(color)
+        self._data = image_clear(color)
+
+    def getData(self):
+        return self._data
 
     def setPixel(self,x,y,color):
         if(color == transparent):
@@ -39,13 +47,13 @@ class Image:
         if(x < 0 or x > 7 or y < 0 or y > 7):
             print("error x or y is out of range")
             raise
-        self.data[(y*8)+x] = color
+        self._data[(y*8)+x] = color
 
     def getPixel(self,x,y):
         if(x < 0 or x > 7 or y < 0 or y > 7):
             print("error x or y is out of range")
             raise
-        return self.data[(y*8)+x]
+        return self._data[(y*8)+x]
 
     def drawPic(self, pic, pic_width, pic_height, offset_x, offset_y):
         for index, pix in enumerate(pic, 0):
@@ -180,7 +188,12 @@ humidityMode = 2
 mode = switchMode
 modeLetters = ['S','T','H']
 newMode = temperatureMode
+rotate = rotate0
+
+printEnabled = False
 def printMode():
+    if not printEnabled:
+        return
     if(mode == switchMode):
         print("mode: switch")
     elif(mode == temperatureMode):
@@ -191,7 +204,41 @@ def printMode():
         print("mode: wtf!")
 
 def printEvent(event):
+    if not printEnabled:
+        return
     print("event: "+str(event.action)+" "+str(event.direction))
+
+#  0  1  2  3  4  5  6  7
+#  8  9 10 11 12 13 14 15
+# 16 17 18 19 20 21 22 23
+# 24 25 26 27 28 29 30 31
+# 32 33 34 35 36 37 38 39
+# 40 41 42 43 44 45 46 47
+# 48 49 50 51 52 53 54 55
+# 56 57 58 59 60 61 62 63
+# Po obróceniu o 90 stopni
+#  7 15 23 31 39 47 55 63
+#  6 14 22 30 38 46 54 62
+
+def applyRotate(rot = rotate0):
+    if rot == rotate0:
+        return
+    elif rot == rotate90:
+        pix = hat.get_pixels()
+        newPix = []
+        for x in range(7,-1,-1):
+            for y in range(0,8,1):
+                newPix.append(pix[(y * 8) + x])
+        hat.set_pixels(newPix)
+        return
+    else:
+        pix = hat.get_pixels()
+        newPix = []
+        for x in range(7,-1,-1):
+            for y in range(0,8,1):
+                newPix.append(pix[(y * 8) + x])
+        hat.set_pixels(newPix)
+        return applyRotate(rot-1)
 
 while True:
 
@@ -211,13 +258,39 @@ while True:
                     mode = newMode
 
 
+    rotate = rotate0
+    hat.set_imu_config(compass_enabled=False,gyro_enabled=False,accel_enabled=True)
+    a = hat.get_accelerometer_raw()
+    x = a['x']
+    y = a['y']
+    z = a['z']
+    if abs(x) < 0.1:
+        x = 0
+    if abs(y) < 0.1:
+        y = 0
+    if abs(z) < 0.1:
+        z = 0
+    if x < -0.9:
+        x = -1
+    if y < -0.9:
+        y = -1
+    if z < -0.9:
+        z = -1
+    if x > 0.9:
+        x = 1
+    if y > 0.9:
+        y = 1
+    if z > 0.9:
+        z = 1
+    print(str(x)+" "+str(y)+" "+str(z))
     printMode()
 
     # Tryb do przełączania trybów
     if(mode == switchMode):
         img = Image(black)
-        hat.set_pixels(img.data)
+        hat.set_pixels(img.getData())
         hat.show_letter(modeLetters[newMode],back_colour=red)
+        applyRotate(rot=rotate)
     # Temperatura - wyświetla 2 cyfry na czerwono lub niebiesko
     # zależnie od tego czy temperatura jest ujemna lub dodatnia.
     # Jeśli wartość absolutna temperatury jest przynajmniej równa 100
@@ -238,7 +311,8 @@ while True:
         img = Image(white)
         img.drawDigit(digit_a,digit_a_color)
         img.drawDigit(digit_b,digit_b_color,True)
-        hat.set_pixels(img.data)
+        hat.set_pixels(img.getData())
+        applyRotate(rot=rotate)
     elif(mode == humidityMode):
         t = int(hat.get_humidity())
         abst = abs(t)
@@ -247,6 +321,7 @@ while True:
         img = Image(white)
         img.drawDigit(digit_a,green)
         img.drawDigit(digit_b,green_dark,True)
-        hat.set_pixels(img.data)
+        hat.set_pixels(img.getData())
+        applyRotate(rot=rotate)
 
     time.sleep(.75)
