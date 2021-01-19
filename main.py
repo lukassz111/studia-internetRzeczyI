@@ -1,4 +1,8 @@
-from sense_emu import SenseHat
+try:
+    from sense_emu import SenseHat
+except ImportError:
+    from sense_hat import SenseHat
+#from sense_hat import SenseHat
 import time
 
 hat = SenseHat()
@@ -162,7 +166,7 @@ class Image:
                 c, c, c, c,
             ]
             self.drawPic(pic,4,6,offset_x,offset_y)
-        elif digit > 9:
+        else:
             pic = [
                 c, t, t, t,
                 t, c, t, t,
@@ -226,15 +230,23 @@ while True:
         digit_a_color = black
         digit_b_color = black
         t = int(hat.get_temperature())
+        print("temperature: "+str(t))
         if t < 0:
             digit_a_color = blue
             digit_b_color = blue_dark
+        elif t == 0:
+            digit_a_color = green
+            digit_b_color = green_dark
         else:
             digit_a_color = red
             digit_b_color = red_dark
         abst = abs(t)
         digit_b = int(abst % 10)
         digit_a = int((abst - digit_b)/10)
+        if t >= 100:
+          digit_a = '>'
+          digit_b = '>'
+        print("temperature on display: "+str(digit_a)+" "+str(digit_b))
         img = Image(white)
         img.drawDigit(digit_a,digit_a_color)
         img.drawDigit(digit_b,digit_b_color,True)
